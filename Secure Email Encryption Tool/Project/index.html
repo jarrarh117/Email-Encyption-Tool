@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Encryption Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <img src="image.png" alt="Logo" class="logo">
+        <h1>Email Encryption Tool</h1>
+		<button onclick="signOut()" class="signout-btn">Sign Out</button>
+    </header>
+
+    <div class="container">
+        <h2>Choose an Option</h2>
+        <div class="button-group">
+           <!-- <button onclick="showKeygen()">RSA Key Generator</button>-->
+             <button onclick="showUserSection()">Display Users</button>
+            <button onclick="showEmailEncryption()">Email Encryption</button>
+            <button onclick="showEmailDecryption()">Email Decryption</button>
+           
+        </div>
+
+       <div id="keygen-section" class="section" style="display:none;">
+            <h3>RSA Key Generator</h3>
+            <label for="name">Your Name:</label>
+            <input type="text" id="name" required>
+            <button onclick="generateKeyPair()">Generate RSA Key Pair</button>
+            <label for="public-key">Public Key:</label>
+            <textarea id="public-key" readonly></textarea>
+            <button class="copy-btn" onclick="copyToClipboard('public-key')">Copy</button>
+            <label for="private-key">Private Key:</label>
+            <textarea id="private-key" readonly></textarea>
+            <button class="copy-btn" onclick="copyToClipboard('private-key')">Copy</button>
+        </div>
+
+        <div id="email-encryption-section" class="section" style="display:none;">
+            <h3>Email Encryption Tool</h3>
+            <label for="email">Your Email:</label>
+            <input type="email" id="email" required>
+            <label for="recipient">Recipient's Email:</label>
+            <input type="email" id="recipient" required>
+            <label for="recipient-public-key">Recipient's Public Key:</label>
+            <textarea id="recipient-public-key" placeholder="Paste the recipient's public key here..." required></textarea>
+            <label for="subject">Subject:</label>
+            <input type="text" id="subject" required>
+            <label for="message">Message:</label>
+            <textarea id="message" placeholder="Type your message here..." required></textarea>
+            <button id="send-button" onclick="encryptAndSend()">Encrypt & Send</button>
+            <textarea id="encrypted-message" placeholder="Encrypted message will appear here..." readonly></textarea>
+            <div class="copy-btn-group">
+                <button class="copy-btn" onclick="copyEncryptedMessage()">Copy Encrypted Message</button>
+                <button class="copy-btn" onclick="copyEncryptedAESKey()">Copy Encrypted AES Key</button>
+            </div>
+        </div>
+
+        <div id="email-decryption-section" class="section" style="display:none;">
+            <h3>Email Decryption Tool</h3>
+            <label for="encrypted-text">Encrypted Text:</label>
+            <textarea id="encrypted-text" placeholder="Paste the encrypted text here..." required></textarea>
+            <label for="encrypted-key">Encrypted AES Key:</label>
+            <textarea id="encrypted-key" placeholder="Paste the encrypted AES key here..." required></textarea>
+            <label for="private-key">Your Private Key:</label>
+            <textarea id="private-key-decrypt"  placeholder="Paste your private key here..." required></textarea>
+            <button onclick="decryptAndDisplay()">Decrypt & Show</button>
+          
+            <textarea id="decrypted-message" placeholder="Decrypted message will appear here..." readonly></textarea>
+            <button class="copy-btn" onclick="copyToClipboard('decrypted-message')">Copy Decrypted Message</button>
+            <a id="download-link" style="display: none;">Download Attachment</a>
+        </div>
+
+        <div id="user-section" class="section" style="display:none;">
+            <h3>Users</h3>
+            <input type="text" id="user-search" placeholder="Search users by email..." oninput="searchUsers()">
+           
+            <ul id="user-list"></ul>
+        </div>
+    </div>
+
+    <footer>
+        <p>Connect with us: 
+            <a href="mailto:jarrarhaider26@gmail.com">jarrarhaider26@gmail.com</a> | 
+            <a href="https://github.com/MuhammadJarrarHaider?tab=repositories" target="_blank">GitHub</a>
+        </p>
+    </footer>
+
+  <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <!-- Firebase Auth SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <!-- Firebase Firestore SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script>
+       // import StorageService from './StorageService.js';
+
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCxdyehnzhuic5dT5Qw6yMGbbltf99UWvM",
+            authDomain: "email-encryption-tool.firebaseapp.com",
+            projectId: "email-encryption-tool",
+            storageBucket: "email-encryption-tool.appspot.com",
+            messagingSenderId: "1072431353906",
+            appId: "1:1072431353906:web:737eb9a0bb51edc0f2ec2b"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        let usersData = []; // Array to store user data
+
+        // Function to fetch and display users
+        function showUserSection() {
+            hideAllSections();
+            document.getElementById('user-section').style.display = 'block';
+            displayUsers();
+        }
+
+        // Function to display all users
+        async function displayUsers() {
+            const userList = document.getElementById('user-list');
+            userList.innerHTML = ''; // Clear previous user list
+
+            try {
+                const usersRef = await db.collection('users').get();
+                usersData = usersRef.docs.map(doc => doc.data());
+                usersData.forEach(userData => {
+                    addUserToList(userData);
+                });
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            }
+        }
+
+        // Function to add user to the list
+        function addUserToList(userData) {
+            const userList = document.getElementById('user-list');
+            const li = document.createElement('li');
+            
+            li.innerHTML = `<label for="username">Username:</label> 
+            ${userData.username}
+            <label for="email">Email:</label>
+           (${userData.email})<br> 
+            <label for="public-key">Public Key:</label>
+            <textarea readonly>${userData.publicKey}</textarea>
+            <button onclick="fillEncryptionSection('${userData.email}', '${userData.publicKey}')">Send Encrypted Message</button>`;
+            userList.appendChild(li);
+        }
+
+        // Function to search users by email
+        function searchUsers() {
+            const searchValue = document.getElementById('user-search').value.toLowerCase();
+            const filteredUsers = usersData.filter(user => user.email.toLowerCase().includes(searchValue));
+
+            const userList = document.getElementById('user-list');
+            userList.innerHTML = ''; // Clear the list
+
+            filteredUsers.forEach(userData => {
+                addUserToList(userData);
+            });
+        }
+
+        function getLocalStorageItem(key) {
+    try {
+        const value = localStorage.getItem(key);
+        console.log(`Item retrieved: ${key} = ${value}`);
+        return value;
+    } catch (error) {
+        console.error('Error getting local storage item:', error);
+        return null;
+    }
+}
+
+        // Function to hide all sections except the selected one
+        function hideAllSections() {
+            const sections = document.getElementsByClassName('section');
+            for (let section of sections) {
+                section.style.display = 'none';
+            }
+        }
+
+        // Function to fill encryption section with email and public key
+        function fillEncryptionSection(email, publicKey) {
+            document.getElementById('recipient').value = email;
+            document.getElementById('recipient-public-key').value = publicKey;
+            showEmailEncryption();
+        }
+
+        // Function to copy text to clipboard
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Copied to clipboard');
+        }
+
+        // Show encryption section
+        function showEmailEncryption() {
+            hideAllSections();
+            document.getElementById('email-encryption-section').style.display = 'block';
+        }
+        async function setValueForPrivateKeyTextarea() {
+            const privateKeyTextarea = document.getElementById('private-key-decrypt');
+            //const urlParams = new URLSearchParams(window.location.search);
+            const PRIVATE_KEY = getLocalStorageItem("PRIVATE_KEY");
+            //let pk = urlParams.get('pk');
+           // pk = pk.replace(/[\n\r]/g, '');
+            // const username = urlParams.get('username');
+
+               // Output: 123
+            // console.log(username);  // Output: john_doe // Call your function to get the private key
+
+            // Set the value retrieved from function
+            // privateKeyTextarea.value = pk;
+            privateKeyTextarea.value = PRIVATE_KEY;
+
+            
+        }
+
+        // Call the function to set the value when needed
+        setValueForPrivateKeyTextarea();
+    function showEmailEncryption() {
+    document.getElementById('keygen-section').style.display = 'none';
+    document.getElementById('email-encryption-section').style.display = 'block';
+    document.getElementById('email-decryption-section').style.display = 'none';
+    document.getElementById('user-section').style.display = 'none';
+}
+
+function showEmailDecryption() {
+    document.getElementById('keygen-section').style.display = 'none';
+    document.getElementById('email-encryption-section').style.display = 'none';
+    document.getElementById('email-decryption-section').style.display = 'block';
+    document.getElementById('user-section').style.display = 'none';
+}
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+
+function copyToClipboard(elementId) {
+    const copyText = document.getElementById(elementId);
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // For mobile devices
+    document.execCommand("copy");
+    alert("Copied to clipboard: " + copyText.value);
+}
+
+function copyEncryptedMessage() {
+    const encryptedMessage = document.getElementById('encrypted-message').value;
+    const message = encryptedMessage.split('Encrypted AES Key:')[0].trim();
+    copyTextToClipboard(message);
+}
+
+function copyEncryptedAESKey() {
+    const encryptedMessage = document.getElementById('encrypted-message').value;
+    const key = encryptedMessage.split('Encrypted AES Key:')[1].trim();
+    copyTextToClipboard(key);
+}
+
+function copyTextToClipboard(text) {
+    const tempTextArea = document.createElement('textarea');
+    tempTextArea.value = text;
+    document.body.appendChild(tempTextArea);
+    tempTextArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempTextArea);
+    alert('Copied to clipboard: ' + text);
+}
+async function encryptAndSend() {
+    const sender = document.getElementById('email').value;
+    const recipient = document.getElementById('recipient').value;
+    const recipientPublicKeyPem = document.getElementById('recipient-public-key').value;
+    const subject = document.getElementById('subject').value;
+    const message = document.getElementById('message').value;
+
+    const aesKey = generateRandomKey(32);
+    const encryptedMessage = await aesGcmEncrypt(message, aesKey);
+    const encryptedAESKey = await rsaEncrypt(recipientPublicKeyPem, aesKey);
+
+    const finalMessage = `From: ${sender}\nTo: ${recipient}\nSubject: ${subject}\nEncrypted Message: ${encryptedMessage}\nEncrypted AES Key: ${encryptedAESKey}`;
+
+    document.getElementById('encrypted-message').value = finalMessage;
+
+    const mailtoLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(finalMessage)}`;
+    window.open(mailtoLink, '_blank');
+
+    document.getElementById('email').value = '';
+    document.getElementById('recipient').value = '';
+    document.getElementById('recipient-public-key').value = '';
+    document.getElementById('subject').value = '';
+    document.getElementById('message').value = '';
+}
+
+async function decryptAndDisplay() {
+    const encryptedText = document.getElementById('encrypted-text').value;
+    const encryptedKey = document.getElementById('encrypted-key').value;
+    const privateKeyPem = document.getElementById('private-key-decrypt').value;
+
+    const aesKey = await rsaDecrypt(privateKeyPem, encryptedKey);
+    const decryptedMessage = await aesGcmDecrypt(encryptedText, aesKey);
+
+    document.getElementById('decrypted-message').value = decryptedMessage;
+}
+
+function generateRandomKey(length) {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    return array;
+}
+
+async function aesGcmEncrypt(plainText, aesKey) {
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encoder = new TextEncoder();
+    const encrypted = await window.crypto.subtle.encrypt({
+        name: "AES-GCM",
+        iv: iv
+    }, await window.crypto.subtle.importKey("raw", aesKey, { name: "AES-GCM" }, false, ["encrypt"]), encoder.encode(plainText));
+    return arrayBufferToBase64(iv) + arrayBufferToBase64(encrypted);
+}
+
+async function aesGcmDecrypt(cipherText, aesKey) {
+    const decoder = new TextDecoder();
+    const iv = base64ToArrayBuffer(cipherText.slice(0, 16));
+    const encrypted = base64ToArrayBuffer(cipherText.slice(16));
+    const decrypted = await window.crypto.subtle.decrypt({
+        name: "AES-GCM",
+        iv: iv
+    }, await window.crypto.subtle.importKey("raw", aesKey, { name: "AES-GCM" }, false, ["decrypt"]), encrypted);
+    return decoder.decode(decrypted);
+}
+
+function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+async function rsaEncrypt(publicKeyPem, data) {
+    const publicKey = await window.crypto.subtle.importKey(
+        "spki",
+        base64ToArrayBuffer(publicKeyPem),
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["encrypt"]
+    );
+    const encrypted = await window.crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        publicKey,
+        data
+    );
+    return arrayBufferToBase64(encrypted);
+}
+
+async function rsaDecrypt(privateKeyPem, encryptedData) {
+    const privateKey = await window.crypto.subtle.importKey(
+        "pkcs8",
+        base64ToArrayBuffer(privateKeyPem),
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["decrypt"]
+    );
+    const decrypted = await window.crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        privateKey,
+        base64ToArrayBuffer(encryptedData)
+    );
+    return new Uint8Array(decrypted);
+}
+
+        function signOut() {
+            auth.signOut().then(() => {
+                console.log('User signed out.');
+                window.location.href = 'login.html'; // Redirect to login page
+            }).catch((error) => {
+                console.error('Sign-out error:', error);
+            });
+        }
+
+       
+    </script>
+  
+</body>
+</html>
