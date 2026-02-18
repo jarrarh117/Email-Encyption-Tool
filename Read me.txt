@@ -1,0 +1,45 @@
+How to run the code:
+
+1:Node JS Installation required
+2:Firebase installation required
+3:Xamp local host installation
+4:Firebase firestore database creation 
+5:Run the code 
+
+
+Work Distribution:
+Muhammad Jarrar Haider:
+Frontend
+Firebase configuration
+Node JS installation
+Firebase libraries
+Brower local database access
+Signup form 
+login Form
+Sytle sheet 
+
+Downloaded code:
+firebase quries to fetch and set data in firebase
+
+
+Muhammad Jarrar Haider:
+Email text encryption 
+AES key generation 
+Text encryption using Aes key 
+Text Decryption using Aes key 
+
+Downloaded code:
+Random key generator algorithm
+AES GCM algorithm to encrypt and decrypt the code 
+
+
+Muhammad Jarrar Haider:
+RSA key generation 
+Public private key management 
+AES key encryption using RSA public key in JS
+AES key Decryption using RSA public key in JS
+
+Downloaded code:
+RSA key generator algorithm in JS
+Aes key encryption and decrption algorithm in JS
+
